@@ -1,0 +1,33 @@
+# Compiled files
+*.hex
+*.elf
+*.bin
+*.o
+*.d
+*.dep
+*.eep
+*.map
+*.a
+*.out
+
+# Arduino build folder
+build/
+*.pio
+
+# Logs
+*.log
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Editor/IDE specific
+*.swp
+*.swo
+*.bak
+*.tmp
+*.orig
+.vscode/
+.idea/
+
+
