@@ -21,14 +21,31 @@ const uint8_t SENSOR_ADDRESSES[][8] = {
   { 0x28, 0xED, 0x45, 0xA2, 0x40, 0x24, 0x0B, 0x03 }
 };
 
+static const HeatingConfig HEATING_CFG = {};
+
 #elif SENSOR_CONFIG == 2
 const uint8_t SENSOR_ADDRESSES[][8] = {
   { 0x28, 0x94, 0x1B, 0x51, 0x00, 0x00, 0x00, 0x28 },
   { 0x28, 0xC2, 0x5A, 0x52, 0x00, 0x00, 0x00, 0x18 }
 };
 
+static const uint8_t FURNACE_MODES[]  = { 1 };
+static const uint8_t ELECTRIC_MODES[] = { 2 };
+static const HeatingConfig HEATING_CFG = {
+  /*furnaceModes*/  FURNACE_MODES,
+  /*furnaceCount*/  sizeof(FURNACE_MODES),
+  /*furnaceState*/  0,
+  /*furnaceIdx*/    1,
+  /*electricModes*/ ELECTRIC_MODES,
+  /*electricCount*/ sizeof(ELECTRIC_MODES),
+  /*electricState*/ 2,
+  /*electricIdx*/   3,
+  /*totalModes*/    2
+};
+
 #else
 const uint8_t* SENSOR_ADDRESSES = nullptr;
+static const HeatingConfig HEATING_CFG = {};
 #endif
 
 // Calculate number of sensors automatically
@@ -168,25 +185,6 @@ void printUptime() {
   Serial.print(minutes); Serial.print(" minutes, ");
   Serial.print(seconds); Serial.println(" seconds");
 }
-
-// ---------------- Heating switches configuration (only here) ----------------
-#if SENSOR_CONFIG == 2
-static const uint8_t FURNACE_MODES[]  = { 1 };
-static const uint8_t ELECTRIC_MODES[] = { 2 };
-static const HeatingConfig HEATING_CFG = {
-  /*furnaceModes*/  FURNACE_MODES,
-  /*furnaceCount*/  sizeof(FURNACE_MODES),
-  /*furnaceState*/  0,
-  /*furnaceIdx*/    1,
-  /*electricModes*/ ELECTRIC_MODES,
-  /*electricCount*/ sizeof(ELECTRIC_MODES),
-  /*electricState*/ 2,
-  /*electricIdx*/   3,
-  /*totalModes*/    2
-};
-#else
-static const HeatingConfig HEATING_CFG = {};
-#endif
 
 static HeatingSwitches switches(HEATING_CFG);
 
