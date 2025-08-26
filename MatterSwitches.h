@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <Matter.h>
-#include <MatterLightbulb.h>
+#include <MatterOnOffPluginUnit.h>
 
 // -----------------------------
 // EEPROM helpers
@@ -25,15 +25,15 @@ public:
   : _name(displayName), _stateAddr(eepromStateAddr), _defaultOn(defaultOn) {}
 
   void begin() {
-    _bulb.begin();
+    _onoff.begin();
     const bool initial = eepromReadByteOrDefault(_stateAddr, _defaultOn ? 1 : 0) != 0;
-    _bulb.set_onoff(initial);
-    _lastState = _bulb.get_onoff();
+    _onoff.set_onoff(initial);
+    _lastState = _onoff.get_onoff();
   }
 
   // Call in loop()
   void update() {
-    bool cur = _bulb.get_onoff();
+    bool cur = _onoff.get_onoff();
     if (cur != _lastState) {
       _lastState = cur;
       eepromWriteByteChanged(_stateAddr, cur ? 1 : 0);
@@ -43,24 +43,24 @@ public:
 
   // Programmatic control
   void set(bool on) {
-    if (_bulb.get_onoff() != on) {
-      _bulb.set_onoff(on);
+    if (_onoff.get_onoff() != on) {
+      _onoff.set_onoff(on);
       // Persistence is handled uniformly in update()
     }
   }
-  bool get() { return _bulb.get_onoff(); }
+  bool get() { return _onoff.get_onoff(); }
   void toggle() { set(!get()); }
 
   void onChange(void (*cb)(bool)) { _onChange = cb; }
   const char* name() const { return _name; }
-  MatterLightbulb& raw() { return _bulb; }
+  MatterOnOffPluginUnit& raw() { return _onoff; }
 
 private:
   const char* _name;
   int _stateAddr;
   bool _defaultOn = false;
 
-  MatterLightbulb _bulb;
+  MatterOnOffPluginUnit _onoff;
   bool _lastState = false;
   void (*_onChange)(bool) = nullptr;
 };
@@ -272,5 +272,3 @@ private:
   ModeSwitch* _furnace = nullptr;
   ModeSwitch* _electric = nullptr;
 };
-
-
