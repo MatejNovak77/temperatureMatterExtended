@@ -169,20 +169,26 @@ void printUptime() {
   Serial.print(seconds); Serial.println(" seconds");
 }
 
-// ---------------- Heating modes (only for SENSOR_CONFIG 2) ----------------
+// ---------------- Heating switches configuration (only here) ----------------
 #if SENSOR_CONFIG == 2
 static const uint8_t FURNACE_MODES[]  = { 1 };
 static const uint8_t ELECTRIC_MODES[] = { 2 };
-
-// EEPROM map suggestion for heating switches (bytes):
-//   0: Furnace ON/OFF
-//   1: Furnace sub-mode index
-//   2: Electric ON/OFF
-//   3: Electric sub-mode index
-ModeSwitch furnaceSwitch("Heating: Furnace", /*state*/0, /*idx*/1, FURNACE_MODES, sizeof(FURNACE_MODES));
-ModeSwitch electricSwitch("Heating: Electric", /*state*/2, /*idx*/3, ELECTRIC_MODES, sizeof(ELECTRIC_MODES));
-MultiModeSelector heatingSelector(/*totalModes=*/2);
+static const HeatingConfig HEATING_CFG = {
+  /*furnaceModes*/  FURNACE_MODES,
+  /*furnaceCount*/  sizeof(FURNACE_MODES),
+  /*furnaceState*/  0,
+  /*furnaceIdx*/    1,
+  /*electricModes*/ ELECTRIC_MODES,
+  /*electricCount*/ sizeof(ELECTRIC_MODES),
+  /*electricState*/ 2,
+  /*electricIdx*/   3,
+  /*totalModes*/    2
+};
+#else
+static const HeatingConfig HEATING_CFG = {};
 #endif
+
+static HeatingSwitches switches(HEATING_CFG);
 
 void setup() {
   printUptime();
@@ -248,17 +254,12 @@ void setup() {
   Serial.println("");
   Serial.println("Matter temperature sensors initialized");
 
-#if SENSOR_CONFIG == 2
-  // Initialize heating mode endpoints and selector
-  furnaceSwitch.begin();
-  electricSwitch.begin();
-  heatingSelector.attach(&furnaceSwitch);
-  heatingSelector.attach(&electricSwitch);
-  heatingSelector.onGroupChange([](uint8_t mode){
+  // Initialize heating switches manager (no-op if unconfigured)
+  switches.begin();
+  switches.onGroupChange([](uint8_t mode){
     const char* name = (mode==0) ? "OFF" : (mode==1) ? "FURNACE" : (mode==2) ? "ELECTRIC" : "UNKNOWN";
     Serial.printf("[Heating] Group mode -> %s (%u)\n", name, mode);
   });
-#endif
 
   if (!Matter.isDeviceCommissioned()) {
     Serial.println("Matter device is not commissioned");
@@ -338,9 +339,7 @@ void loop() {
   }
 
   // Update heating group state (mutual exclusivity + mode reporting)
-#if SENSOR_CONFIG == 2
-  heatingSelector.updateGroup();
-#endif
+  switches.update();
 
   // No delays anywhere — loop stays responsive, Matter can breathe.
 }

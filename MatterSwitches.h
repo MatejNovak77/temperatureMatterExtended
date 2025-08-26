@@ -197,4 +197,80 @@ private:
   void (*_onGroupChange)(uint8_t) = nullptr;
 };
 
+// -----------------------------
+// HeatingSwitches manager (config-driven)
+// -----------------------------
+struct HeatingConfig {
+  const uint8_t* furnaceModes = nullptr;
+  size_t furnaceCount = 0;
+  int furnaceStateAddr = 0;
+  int furnaceIdxAddr = 0;
+
+  const uint8_t* electricModes = nullptr;
+  size_t electricCount = 0;
+  int electricStateAddr = 0;
+  int electricIdxAddr = 0;
+
+  uint8_t totalModes = 0; // highest valid mode id
+};
+
+class HeatingSwitches {
+public:
+  explicit HeatingSwitches(const HeatingConfig& cfg) : _cfg(cfg) {}
+
+  void begin() {
+    // Build only if at least one switch is configured
+    _enabled = (_cfg.furnaceCount > 0) || (_cfg.electricCount > 0);
+    if (!_enabled) return;
+
+    if (_cfg.furnaceCount > 0) {
+      _furnace = new ModeSwitch("Heating: Furnace",
+                                _cfg.furnaceStateAddr,
+                                _cfg.furnaceIdxAddr,
+                                _cfg.furnaceModes,
+                                _cfg.furnaceCount);
+      _furnace->begin();
+    }
+    if (_cfg.electricCount > 0) {
+      _electric = new ModeSwitch("Heating: Electric",
+                                 _cfg.electricStateAddr,
+                                 _cfg.electricIdxAddr,
+                                 _cfg.electricModes,
+                                 _cfg.electricCount);
+      _electric->begin();
+    }
+
+    _selector = new MultiModeSelector(_cfg.totalModes);
+    if (_furnace) _selector->attach(_furnace);
+    if (_electric) _selector->attach(_electric);
+  }
+
+  void update() {
+    if (_selector) _selector->updateGroup();
+  }
+
+  void onGroupChange(void (*cb)(uint8_t)) {
+    if (_selector) _selector->onGroupChange(cb);
+  }
+
+  uint8_t currentMode() const {
+    return _selector ? _selector->currentMode() : 0;
+  }
+
+  bool isEnabled() const { return _enabled; }
+
+  ~HeatingSwitches() {
+    delete _selector; _selector = nullptr;
+    delete _furnace; _furnace = nullptr;
+    delete _electric; _electric = nullptr;
+  }
+
+private:
+  HeatingConfig _cfg;
+  bool _enabled = false;
+  MultiModeSelector* _selector = nullptr;
+  ModeSwitch* _furnace = nullptr;
+  ModeSwitch* _electric = nullptr;
+};
+
 
