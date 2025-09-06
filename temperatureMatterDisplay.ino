@@ -27,9 +27,19 @@ class TempSensor {
 private:
   DeviceAddress address;
   MatterTemperature matterSensor;
+  
+  // Cached value storage
+  float cachedValue;
+  unsigned long cachedTimestamp;
+  bool hasCachedValue;
+  static const unsigned long CACHE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
   bool isValid(float temp) {
     return temp > TEMP_MIN && temp < TEMP_MAX && temp != 85;  // 85.0 is sometimes returned as faulty value
+  }
+  
+  bool isCachedValueValid() {
+    return hasCachedValue && (millis() - cachedTimestamp < CACHE_TIMEOUT_MS);
   }
 
 public:
@@ -37,6 +47,10 @@ public:
     for (int i = 0; i < 8; i++) {
       address[i] = addr[i];
     }
+    // Initialize cached value
+    cachedValue = 0.0;
+    cachedTimestamp = 0;
+    hasCachedValue = false;
   }
 
   void begin() {
@@ -48,6 +62,10 @@ public:
     for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       temp = sensors.getTempC(address);
       if (isValid(temp)) {
+        // Store valid value in cache
+        cachedValue = temp;
+        cachedTimestamp = millis();
+        hasCachedValue = true;
         return temp;
       }
       delay(RETRY_DELAY_MS);
@@ -65,17 +83,29 @@ public:
 
   void update(int index) {
     float temp = readTemperature();
+    bool usingCachedValue = false;
 
     // send to serial and Matter
     if (isValid(temp)) {
       printTemperature(index, temp);
       matterSensor.set_measured_value_celsius(temp);
     } else {
-      Serial.print("Sensor ");
-      Serial.print(index + 1);
-      Serial.print(": invalid reading: ");
-      Serial.print(temp);
-      Serial.println("°C (skipped)");
+      // Check if we have a valid cached value to display
+      if (isCachedValueValid()) {
+        temp = cachedValue;
+        usingCachedValue = true;
+        Serial.print("Sensor ");
+        Serial.print(index + 1);
+        Serial.print(": using cached value: ");
+        Serial.print(temp);
+        Serial.println("°C");
+      } else {
+        Serial.print("Sensor ");
+        Serial.print(index + 1);
+        Serial.print(": invalid reading: ");
+        Serial.print(temp);
+        Serial.println("°C (no valid cache)");
+      }
     }
 
     // ---- draw on display ----
@@ -92,14 +122,18 @@ public:
       u8g2.drawBox(0, y - charH + 3, charW - 1, charH - 1);
 
       u8g2.setDrawColor(0);
-      char sensorChar[2];
-      sprintf(sensorChar, "%d", index + 1);
+      char sensorChar[4]; // Increased size to accommodate dot
+      if (usingCachedValue) {
+        sprintf(sensorChar, "%d.", index + 1);
+      } else {
+        sprintf(sensorChar, "%d", index + 1);
+      }
       u8g2.drawStr(3, y, sensorChar);
 
       u8g2.setFont(valueFont);
       u8g2.setDrawColor(1);
       char tempStr[16];
-      if (isValid(temp)) {
+      if (isValid(temp) || usingCachedValue) {
         sprintf(tempStr, "%.1f\xB0", temp);
       } else {
         sprintf(tempStr, "--.-\xB0");
