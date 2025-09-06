@@ -8,13 +8,14 @@
 #include <U8g2lib.h>
 #include <Wire.h>
 
-#define SENSOR_CONFIG 1 
+#define SENSOR_CONFIG 2 
 
 const float TEMP_MIN = -30.0;
 const float TEMP_MAX = 99.9;
 const int MAX_RETRIES = 3;
+const int RETRY_DELAY_MS = 300;
 const int READOUT_DELAY_MS = 5000;
-const int MATTER_DELAY_MS = 10000;
+const int LOOP_DELAY_MS = 100;
 
 #define ONE_WIRE_BUS 2
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R1, /* reset=*/U8X8_PIN_NONE);  // display
@@ -174,6 +175,7 @@ void setup() {
 
   Serial.begin(9600);
   sensors.begin();
+  sensors.setResolution(11); // ~375 ms instead of 750 ms
   Matter.begin();
 
   // print sensor addresses if numSensors == 0 -----
@@ -232,10 +234,6 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  // Always let Matter run
-  // (Matter.begin() already sets up internal tasks, but we should not block)
-  // No delay here.
-
   // Only perform sensor readout + display update if interval elapsed
   if (now - lastReadout >= READOUT_DELAY_MS) {
     lastReadout = now;
@@ -278,7 +276,7 @@ void loop() {
     u8g2.sendBuffer();
 
     Serial.println();
+    delay(LOOP_DELAY_MS);
   }
   
-  // The loop keeps spinning, Matter and other tasks can run freely.
 }
